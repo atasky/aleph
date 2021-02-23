@@ -273,7 +273,7 @@ def sample_entities(secret, properties, schematas, sample_pct, limit, outfile):
     collections = [
         collection
         for collection in Collection.all_authz(authz)
-        if collection.secret == secret
+        if collection.secret == secret and collection.casefile == False
     ]
     random.shuffle(collections)
     n_entities = 0
