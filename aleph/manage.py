@@ -270,7 +270,11 @@ def dump_entities(foreign_id, outfile):
 def sample_entities(secret, properties, schematas, sample_pct, limit, outfile):
     """Sample random entities"""
     authz = Authz.from_role(Role.load_cli_user())
-    collections = list(Collection.all_by_secret(secret, authz))
+    collections = [
+        collection
+        for collection in Collection.all_authz(authz)
+        if collection.secret == secret
+    ]
     random.shuffle(collections)
     n_entities = 0
     for collection in collections:
