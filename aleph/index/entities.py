@@ -35,15 +35,18 @@ def _source_spec(includes, excludes):
     return {"includes": includes, "excludes": excludes}
 
 
-def _entities_query(filters, authz, collection_id, schemata):
+def _entities_query(filters, authz, collection_id, schemata, should):
     filters = filters or []
+    query_bool = {}
     if authz is not None:
         filters.append(authz_query(authz))
     if collection_id is not None:
         filters.append({"term": {"collection_id": collection_id}})
-    # if ensure_list(schemata):
-    #     filters.append({"terms": {"schemata": ensure_list(schemata)}})
-    return {"bool": {"filter": filters}}
+    if should:
+        query_bool["minimum_should_match"] = 1
+    query_bool["filter"] = filters
+    query_bool["should"] = should
+    return {"bool": query_bool}
 
 
 def get_field_type(field):
@@ -63,11 +66,12 @@ def iter_entities(
     includes=PROXY_INCLUDES,
     excludes=None,
     filters=None,
+    should=None,
     sort=None,
 ):
     """Scan all entities matching the given criteria."""
     query = {
-        "query": _entities_query(filters, authz, collection_id, schemata),
+        "query": _entities_query(filters, authz, collection_id, schemata, should),
         "_source": _source_spec(includes, excludes),
     }
     preserve_order = False

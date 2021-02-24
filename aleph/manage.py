@@ -19,7 +19,7 @@ from aleph.worker import get_worker
 from aleph.queues import get_status, get_stage, cancel_queue
 from aleph.queues import get_active_dataset_status, OP_XREF
 from aleph.index.admin import delete_index
-from aleph.index.entities import iter_proxies
+from aleph.index.entities import iter_proxies, iter_entities, entities_by_ids
 from aleph.logic.collections import create_collection, update_collection
 from aleph.logic.collections import delete_collection, reindex_collection
 from aleph.logic.collections import upgrade_collections, reingest_collection
@@ -196,10 +196,14 @@ def xref(foreign_id):
 @click.argument("foreign_id")
 @click.option("-i", "--infile", type=click.File("r"), default="-")  # noqa
 @click.option(
-    "--safe/--unsafe", default=True, help="Allow references to archive hashes.",
+    "--safe/--unsafe",
+    default=True,
+    help="Allow references to archive hashes.",
 )
 @click.option(
-    "--mutable/--immutable", default=False, help="Mark entities mutable.",
+    "--mutable/--immutable",
+    default=False,
+    help="Mark entities mutable.",
 )
 def load_entities(foreign_id, infile, safe=False, mutable=False):
     """Load FtM entities from the specified iJSON file."""
@@ -248,7 +252,16 @@ def dump_entities(foreign_id, outfile):
     multiple=True,
     type=str,
     default=[],
-    help="Entities must have at least one of the listed properties",
+    help="Entities must have at least one of the listed properties fields or types",
+)
+@click.option(
+    "--type",
+    "-t",
+    "types",
+    multiple=True,
+    type=str,
+    default=[],
+    help="Entities must have at least one of the listed property types or fields",
 )
 @click.option(
     "--schemata",
@@ -260,14 +273,21 @@ def dump_entities(foreign_id, outfile):
     help="Filter schematas",
 )
 @click.option(
-    "--sample-pct",
-    type=float,
-    default=0.1,
-    help="Random sampling percent (value from 0-1)",
+    "--limit",
+    type=int,
+    default=1000,
+    required=True,
+    help="Number of entities to return",
 )
-@click.option("--limit", type=int, default=None, help="Number of entities to return")
+@click.option(
+    "--resevour",
+    "use_resevour",
+    type=bool,
+    default=True,
+    help="Use resevour sampling for the entities (slow but gives a good sampling)",
+)
 @click.argument("outfile", type=click.File("w+"), default="-")
-def sample_entities(secret, properties, schematas, sample_pct, limit, outfile):
+def sample_entities(secret, properties, types, schematas, limit, use_resevour, outfile):
     """Sample random entities"""
     authz = Authz.from_role(Role.load_cli_user())
     collections = [
@@ -276,24 +296,35 @@ def sample_entities(secret, properties, schematas, sample_pct, limit, outfile):
         if collection.secret == secret and collection.casefile == False
     ]
     random.shuffle(collections)
-    n_entities = 0
+    should = [{"exists": {"field": f"properties.{p}"}} for p in properties]
+    should.extend({"exists": {"field": t}} for t in types)
+    use_resevour = use_resevour and limit
+    if not use_resevour:
+        excludes = None
+    else:
+        excludes = ["*"]
+    i = 0
+    resevour = []
     for collection in collections:
-        aggregator = get_aggregator(collection)
-        for entity in aggregator.iterate(skip_errors=True):
-            if properties and not any(
-                entity.properties.get(prop) for prop in properties
-            ):
-                continue
-            if schematas and set(schematas).isdisjoint(entity.schema.names):
-                continue
-            ent_id, digest = collection.ns.parse(entity.id)
-            if digest is None:
-                digest = ent_id
-            if int(digest[:16], 16) < (sample_pct * (1 << 64)):
+        entities = iter_entities(
+            authz, collection.id, schematas, should=should, excludes=excludes
+        )
+        for entity in entities:
+            if not use_resevour:
                 write_object(outfile, entity)
-                n_entities += 1
-                if limit and n_entities >= limit:
-                    return
+            elif len(resevour) < limit:
+                resevour.append(entity["id"])
+            else:
+                N = random.randint(0, i)
+                if N < limit:
+                    resevour[N] = entity["id"]
+            i += 1
+            if not use_resevour and limit and i == limit:
+                return
+    if not use_resevour:
+        return
+    for entity in entities_by_ids(resevour, cached=True):
+        write_object(outfile, entity)
 
 
 @cli.command()
