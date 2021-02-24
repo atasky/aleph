@@ -16,8 +16,8 @@ from aleph.authz import Authz
 from aleph.model import Collection, Role
 from aleph.migration import upgrade_system, destroy_db, cleanup_deleted
 from aleph.worker import get_worker
-from aleph.queues import get_status, get_stage, cancel_queue
-from aleph.queues import get_active_dataset_status, OP_XREF
+from aleph.queues import get_status, cancel_queue
+from aleph.queues import get_active_dataset_status
 from aleph.index.admin import delete_index
 from aleph.index.entities import iter_proxies, iter_entities, entities_by_ids
 from aleph.logic.collections import create_collection, update_collection
@@ -30,7 +30,6 @@ from aleph.logic.xref import xref_collection
 from aleph.logic.export import retry_exports
 from aleph.logic.roles import create_user, update_roles, delete_role
 from aleph.logic.permissions import update_permission
-from aleph.logic.aggregator import get_aggregator
 
 log = logging.getLogger("aleph")
 
