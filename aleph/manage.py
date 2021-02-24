@@ -292,7 +292,7 @@ def sample_entities(secret, properties, types, schematas, limit, use_resevour, o
     collections = [
         collection
         for collection in Collection.all_authz(authz)
-        if collection.secret == secret and not collection.casefile
+        if (secret is None or collection.secret == secret) and not collection.casefile
     ]
     random.shuffle(collections)
     should = [{"exists": {"field": f"properties.{p}"}} for p in properties]
