@@ -68,6 +68,7 @@ def iter_entities(
     filters=None,
     should=None,
     sort=None,
+    raise_on_error=True,
 ):
     """Scan all entities matching the given criteria."""
     query = {
@@ -86,6 +87,7 @@ def iter_entities(
         timeout=MAX_TIMEOUT,
         request_timeout=MAX_REQUEST_TIMEOUT,
         preserve_order=preserve_order,
+        raise_on_error=raise_on_error,
     ):
         entity = unpack_result(res)
         if entity is not None:
