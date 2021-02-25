@@ -5,7 +5,7 @@ import logging
 import random
 from pathlib import Path
 from pprint import pprint  # noqa
-from itertools import count
+from itertools import count, islice
 from normality import slugify
 from tabulate import tabulate
 from flask.cli import FlaskGroup
@@ -195,10 +195,14 @@ def xref(foreign_id):
 @click.argument("foreign_id")
 @click.option("-i", "--infile", type=click.File("r"), default="-")  # noqa
 @click.option(
-    "--safe/--unsafe", default=True, help="Allow references to archive hashes.",
+    "--safe/--unsafe",
+    default=True,
+    help="Allow references to archive hashes.",
 )
 @click.option(
-    "--mutable/--immutable", default=False, help="Mark entities mutable.",
+    "--mutable/--immutable",
+    default=False,
+    help="Mark entities mutable.",
 )
 def load_entities(foreign_id, infile, safe=False, mutable=False):
     """Load FtM entities from the specified iJSON file."""
@@ -309,7 +313,7 @@ def sample_entities(secret, properties, types, schematas, limit, use_resevour, o
             excludes=excludes,
             raise_on_error=False,
         )
-        for entity in entities:
+        for entity in islice(entities, limit * 2):
             if not use_resevour:
                 write_object(outfile, entity)
             elif len(resevour) < limit:
